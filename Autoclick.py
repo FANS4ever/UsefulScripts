@@ -1,58 +1,55 @@
 import time
 import threading
+import argparse
 from pynput import keyboard
 from pynput.mouse import Button, Controller, Listener
 
-delay = 0.03
-button = Button.left
-start_stop_key = '<alt>+s'
-exit_key = '<alt>+e'
-
-def line_print(msg):
-    print(f'\r{msg}', end='')
-
-class ClickMouse(threading.Thread):
-    def __init__(self, delay, button):
-        super(ClickMouse, self).__init__()
+class MouseClickerThread(threading.Thread):
+    def __init__(self, button, delay):
+        super(MouseClickerThread, self).__init__()
+        self.name = f'MouseClicker({button}) thread'
         self.delay = delay
         self.button = button
-        self.running = False
-        self.program_running = True
+        self.clicking = False
+        self.thread_running = True
         self.click_count = 0
+        self.thread_sleep = 0.1
+        self.mouse_controller = Controller()
 
-    def start_clicking(self):
-        self.running = True
-
-    def stop_clicking(self):
-        self.running = False
+    def toggle_clicking(self):
+        self.clicking = not self.clicking
 
     def exit(self):
-        self.stop_clicking()
-        self.program_running = False
+        if self.click_count > 0: print('')
+        print(f'Stopping {self.name}...')
+        self.clicking = False
+        self.thread_running = False
+        raise Listener.StopException
 
     def run(self):
-        print('Running auto-click service...')
-        while self.program_running:
-            while self.running:
-                mouse.click(self.button)
+        print(f'Starting {self.name}...')
+        while self.thread_running:
+            while self.clicking:
+                self.mouse_controller.click(self.button)
                 self.click_count = self.click_count + 1
-                line_print(f'Clicks: {self.click_count}')
+                print(f'\rClicks: {self.click_count}', end='')
                 time.sleep(self.delay)
-            time.sleep(0.1)
+            time.sleep(self.thread_sleep)
 
-mouse = Controller()
-click_thread = ClickMouse(delay, button)
-click_thread.start()
+if __name__ == '__main__':
+    parser = argparse.ArgumentParser()
+    parser.add_argument("-tk", "--toggle-key", default='<alt>+s',  metavar='TEXT', help="Key combination used to toggle clicking (default: %(default)s)")
+    parser.add_argument("-ek", "--exit-key", default='<alt>+e',  metavar='TEXT', help="Key combination used to terminate program (default: %(default)s)")
+    parser.add_argument("-d", "--delay", type=float, default=0.03,  metavar='NUMBER', help="Delay between key presses in seconds (default: %(default)s)")
+    args = parser.parse_args()
 
-def start_stop():
-    if click_thread.running:
-        click_thread.stop_clicking()
-    else:
-        click_thread.start_clicking()
-
-def stop_threads():
-    click_thread.exit()
-    raise Listener.StopException
-
-with keyboard.GlobalHotKeys({start_stop_key:start_stop, exit_key: stop_threads}) as h:
-    h.join()
+    clicker_thread = MouseClickerThread(Button.left, args.delay)
+    clicker_thread.start()
+    with keyboard.GlobalHotKeys({
+        args.toggle_key: clicker_thread.toggle_clicking, 
+        args.exit_key: clicker_thread.exit
+    }) as h:
+        print(f'Start/Stop key: {args.toggle_key}')
+        print(f'Terminate key: {args.exit_key}')
+        h.join()
+    print('Stopped successfully')
