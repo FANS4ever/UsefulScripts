@@ -1,4 +1,5 @@
 #Convenient Base64 cmd tool for windows
+#Needs some code cleanup
 import base64
 import argparse
 import subprocess
@@ -9,6 +10,9 @@ def do_times(action, input, times, file_path):
 
     if file_path and action == base64.b64encode:
         tmp = read_file_bytes(file_path)
+        
+    if file_path and action == base64.b64decode:
+        tmp = read_file_string(input)
     
     for i in range(times):
         tmp = action(tmp)
@@ -25,22 +29,26 @@ def copy_to_clip(text):
     p.wait()
     
 def write_file_bytes(path, bytes):
-    with open(path, "wb") as f:
+    with open(path, 'wb') as f:
          f.write(bytes)
          
 def read_file_bytes(path):
-    with open(path, "rb") as f:
+    with open(path, 'rb') as f:
+        return f.read()
+
+def read_file_string(path):
+    with open(path, 'r') as f:
         return f.read()
 
 if __name__ == '__main__':
     parser = argparse.ArgumentParser()
     action_group = parser.add_mutually_exclusive_group(required=True)
-    action_group.add_argument("-e", "--encode",  metavar='TEXT', help="encode TEXT using Base64")
-    action_group.add_argument("-d", "--decode", metavar='TEXT', help="decode TEXT using Base64")
-    action_group.add_argument("-ef", "--encode-file", metavar='PATH', help="encode a file(bytes) at PATH using Base64")
-    action_group.add_argument("-df", "--decode-file", metavar=('TEXT', 'PATH'), nargs=2, help="decode TEXT to bytes using Base64 and create a file at PATH")
-    parser.add_argument("-t", "--times", type=int, default=1, metavar='NUMBER', help="how many times to encode/decode (default: %(default)s)")
-    parser.add_argument("-c", "--copy-clipboard", action="store_true", help="copy encoded/decoded value to clipboard (does not work with -df argument)")
+    action_group.add_argument('-e', '--encode',  metavar='TEXT', help='encode TEXT using Base64')
+    action_group.add_argument('-d', '--decode', metavar='TEXT', help='decode TEXT using Base64')
+    action_group.add_argument('-ef', '--encode-file', metavar='PATH', help='encode a file(bytes) at PATH using Base64')
+    action_group.add_argument('-df', '--decode-file', metavar=('PATH1', 'PATH2'), nargs=2, help='read Base64 data from file at PATH1 convert it to bytes and output it as a file at PATH2')
+    parser.add_argument('-t', '--times', type=int, default=1, metavar='NUMBER', help='how many times to encode/decode (default: %(default)s)')
+    parser.add_argument('-c', '--copy-clipboard', action='store_true', help='copy encoded/decoded value to clipboard (does not work with -df argument)')
     args = parser.parse_args()
     
     #print(args)
@@ -74,7 +82,7 @@ if __name__ == '__main__':
             print(processed_input)
         
         if(args.decode_file and args.copy_clipboard):
-            print("Copy to clipboard is not supported for decoded files")
+            print('Copy to clipboard is not supported for decoded files')
         elif (args.copy_clipboard):
             copy_to_clip(processed_input)
             print('Copied to clipboard!')
